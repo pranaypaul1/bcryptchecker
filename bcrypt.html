@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bcrypt Bulk Checker — Owner&123</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:18px;background:#f6f8fa;color:#111}
+    h1{font-size:20px;margin-bottom:6px}
+    .container{max-width:940px;margin:0 auto;background:white;padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(20,30,40,0.06)}
+    textarea{width:100%;height:220px;padding:10px;border-radius:8px;border:1px solid #dce3ea;font-family:monospace;resize:vertical}
+    button{padding:10px 14px;border-radius:8px;border:0;background:#2563eb;color:white;font-weight:600;cursor:pointer}
+    button:disabled{opacity:.6;cursor:default}
+    .controls{display:flex;gap:8px;align-items:center;margin-top:8px;margin-bottom:12px}
+    .results{margin-top:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px 10px;border-bottom:1px solid #eef2f7;text-align:left;font-family:monospace}
+    th{background:#fbfdff;font-weight:700}
+    .ok{color:green;font-weight:700}
+    .bad{color:#b91c1c;font-weight:700}
+    .small{font-size:13px;color:#475569}
+    .summary{margin-top:10px;padding:10px;border-radius:8px;background:#f1f5f9}
+    .spinner{display:inline-block;width:16px;height:16px;border:2px solid #e2e8f0;border-top:2px solid #334155;border-radius:50%;animation:spin 0.9s linear infinite;vertical-align:middle;margin-left:8px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Bcrypt Bulk Checker — compares to <code>Owner&123</code></h1>
+    <div class="small">This runs <strong>locally in your browser</strong> using bcryptjs. Do not paste production passwords here unless you're sure.</div>
+
+    <label style="display:block;margin-top:12px;font-weight:600">Paste one bcrypt hash per line (or use the pre-filled ones):</label>
+    <textarea id="hashes">
+$2b$10$2PWmVGZUND4ACKOW5S4VbeL3tm25fArIYdsh0rhwggHh1KEGntYIO
+$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe
+$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe
+$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe
+$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe
+$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe
+$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe
+$2b$10$nFhSl7Fl8U.fPErVIDccGuH61bp9HKSiffT9MzvmRLxkYIhsbw3pu
+$2b$10$T7VsNBaEUf0RkwZFRKkme.9yxif5gsK6E/o4XCTXYTa1DKr1acROm
+$2b$10$P71ETav3tMwlPRPsOXxCVO3X3fqqHkdsxdReoF1QbUlaK/ih7yVby
+$2b$10$ZuMjKwO0Kfp8RcEVrpM3K.y9kb0T.NScvI4KhptxrsFmsDeiF.8F6
+$2b$10$CL2uMwvqjjKhkoBEpxgznuWbrJImrz9qhCGlx63GKuS1hshIdTDSq
+$2b$10$q9ii21oL162jgNuyWdjHje.ceKD5Za7PK7GZZ2X92.8OmdP9rE19m
+$2b$10$B1m3PeWwweQJW3E34V1w0OZNiyfYWgv2Ed1mDlOBY5phpACh.mI7W
+$2b$10$5h7DFPM5rex1kfmaDjLN5uABdNNOsObnXxTbIRjVwsYo0cFQQ2OpO
+$2b$10$DhfDJRAazb2BRsWufSUmVO0HNd.mZtpteYldpTJrLtJlr5bVGdw5m
+$2b$10$MluqqX/A9XOc5FwjqWjDOOY2dVp8yfUPxAmmSZ2jH1oP6SRza0qUO
+$2b$10$jcrkg3ojDS/QtqbSG2qaKO9.ClV3G8B0RtM1YVW8xtShRN1ULghDa
+    </textarea>
+
+    <div class="controls">
+      <button id="checkBtn">Check hashes</button>
+      <button id="clearBtn" style="background:#94a3b8">Clear</button>
+      <button id="fillBtn" style="background:#10b981">Fill sample</button>
+      <div id="status" style="margin-left:8px" class="small"></div>
+    </div>
+
+    <div class="results" id="resultsArea"></div>
+  </div>
+
+  <!-- bcryptjs CDN (runs fully in-browser) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
+
+  <script>
+    // Fixed password to check per your request
+    const PASSWORD_TO_TEST = 'Owner&123';
+
+    const hashesEl = document.getElementById('hashes');
+    const checkBtn = document.getElementById('checkBtn');
+    const resultsArea = document.getElementById('resultsArea');
+    const statusEl = document.getElementById('status');
+    const clearBtn = document.getElementById('clearBtn');
+    const fillBtn = document.getElementById('fillBtn');
+
+    function parseHashes(text) {
+      return text.split(/[\r\n]+/)
+                 .map(s => s.trim())
+                 .filter(s => s.length > 0);
+    }
+
+    function renderTable(rows) {
+      if (!rows.length) {
+        resultsArea.innerHTML = '<div class="small">No hashes provided.</div>';
+        return;
+      }
+      let html = '<table><thead><tr><th>#</th><th>Hash (truncated)</th><th>Match?</th><th>Notes</th></tr></thead><tbody>';
+      rows.forEach((r, i) => {
+        const short = r.hash.length > 60 ? r.hash.slice(0,60) + '…' : r.hash;
+        const matchClass = r.match ? 'ok' : 'bad';
+        const matchText = r.match ? 'YES' : 'NO';
+        html += `<tr>
+          <td>${i+1}</td>
+          <td><code>${short}</code></td>
+          <td class="${matchClass}">${matchText}</td>
+          <td>${r.note || ''}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      // summary
+      const yes = rows.filter(r => r.match).length;
+      const total = rows.length;
+      html += `<div class="summary"><strong>${yes}/${total}</strong> matched the password <code>${PASSWORD_TO_TEST}</code>.</div>`;
+      resultsArea.innerHTML = html;
+    }
+
+    async function checkHashes() {
+      const raw = hashesEl.value;
+      const list = parseHashes(raw);
+
+      if (!list.length) {
+        alert('Please paste one or more bcrypt hashes (one per line).');
+        return;
+      }
+
+      checkBtn.disabled = true;
+      clearBtn.disabled = true;
+      fillBtn.disabled = true;
+      statusEl.innerHTML = 'Checking… <span class="spinner" aria-hidden="true"></span>';
+
+      const results = [];
+
+      // We'll check sequentially to keep UI responsive and readable.
+      // bcryptjs exposes compare() with callback and compareSync(). We'll use promise wrapper.
+      for (let i = 0; i < list.length; i++) {
+        const h = list[i];
+        let note = '';
+        // Quick sanity check — bcrypt hashes start with $2a$ or $2b$ or $2y$ and have length ~60
+        if (!/^\$2[aby]\$/.test(h)) {
+          note = 'Not a recognized bcrypt hash prefix';
+        }
+        try {
+          // bcrypt.compare returns boolean via callback; wrapping in Promise
+          const match = await new Promise((resolve, reject) => {
+            // use bcryptjs from global "dcodeIO" or "bcrypt" depending on build
+            // The CDN exposes "dcodeIO.bcrypt" OR "bcrypt" — handle both.
+            const lib = (typeof bcrypt !== 'undefined') ? bcrypt : (window.dcodeIO && window.dcodeIO.bcrypt);
+            if (!lib) return reject(new Error('bcrypt library not loaded'));
+            lib.compare(PASSWORD_TO_TEST, h, (err, res) => {
+              if (err) return reject(err);
+              resolve(res === true);
+            });
+          });
+          results.push({hash: h, match, note});
+        } catch (err) {
+          results.push({hash: h, match: false, note: 'Error verifying: ' + (err.message || err)});
+        }
+        // update incremental UI
+        renderTable(results.concat(list.slice(i+1).map(h2 => ({hash:h2, match: null, note: ''}))));
+      }
+
+      statusEl.innerHTML = 'Done';
+      checkBtn.disabled = false;
+      clearBtn.disabled = false;
+      fillBtn.disabled = false;
+      renderTable(results);
+    }
+
+    checkBtn.addEventListener('click', checkHashes);
+
+    clearBtn.addEventListener('click', () => {
+      hashesEl.value = '';
+      resultsArea.innerHTML = '';
+      statusEl.innerHTML = '';
+    });
+
+    fillBtn.addEventListener('click', () => {
+      hashesEl.value = [
+'$2b$10$2PWmVGZUND4ACKOW5S4VbeL3tm25fArIYdsh0rhwggHh1KEGntYIO',
+'$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe',
+'$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe',
+'$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe',
+'$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe',
+'$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe',
+'$2b$10$GGlPP3EK.5jRBy8Bqgl9NOSXxtHwlZ4GHOuhm59FAOMu2gf1E7zXe',
+'$2b$10$nFhSl7Fl8U.fPErVIDccGuH61bp9HKSiffT9MzvmRLxkYIhsbw3pu',
+'$2b$10$T7VsNBaEUf0RkwZFRKkme.9yxif5gsK6E/o4XCTXYTa1DKr1acROm',
+'$2b$10$P71ETav3tMwlPRPsOXxCVO3X3fqqHkdsxdReoF1QbUlaK/ih7yVby',
+'$2b$10$ZuMjKwO0Kfp8RcEVrpM3K.y9kb0T.NScvI4KhptxrsFmsDeiF.8F6',
+'$2b$10$CL2uMwvqjjKhkoBEpxgznuWbrJImrz9qhCGlx63GKuS1hshIdTDSq',
+'$2b$10$q9ii21oL162jgNuyWdjHje.ceKD5Za7PK7GZZ2X92.8OmdP9rE19m',
+'$2b$10$B1m3PeWwweQJW3E34V1w0OZNiyfYWgv2Ed1mDlOBY5phpACh.mI7W',
+'$2b$10$5h7DFPM5rex1kfmaDjLN5uABdNNOsObnXxTbIRjVwsYo0cFQQ2OpO',
+'$2b$10$DhfDJRAazb2BRsWufSUmVO0HNd.mZtpteYldpTJrLtJlr5bVGdw5m',
+'$2b$10$MluqqX/A9XOc5FwjqWjDOOY2dVp8yfUPxAmmSZ2jH1oP6SRza0qUO',
+'$2b$10$jcrkg3ojDS/QtqbSG2qaKO9.ClV3G8B0RtM1YVW8xtShRN1ULghDa'
+      ].join('\n');
+    });
+
+    // initial render
+    resultsArea.innerHTML = '<div class="small">Ready — click "Check hashes" to compare each hash with <code>Owner&123</code>.</div>';
+  </script>
+</body>
+</html>
